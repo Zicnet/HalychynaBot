@@ -26,14 +26,14 @@ cur = con.cursor()
 
 @slash.slash_command(description='Список оновлень', )
 async def new(ctx):
-    embed = discord.Embed(title="Список оновлень версії № 1.2.2",
-                          description=f"**1.** Додана команда `/poll` для голосування \n"
-                                      f"**2.** Додана команда  `/balance` (виключно адміністрації)\n "
-                                      f"**3.** Додані логи(список всіх дій гравців)\n"
-                                      f"**4.** Виправлено численну кількість багів",
+    embed = discord.Embed(title="Список оновлень версії № 1.2.5",
+                          description=f"**1.** Додана команда `/send` для відправлення коштів\n"
+                                      f"**2.** Додана команда  `/support` коли виникли питання\n "
+                                      f"**3.** Виправлена глобальна помилка 'Додаток не відповідає'\n"
+                                      f"**4.** Та виправлено численну кількість багів",
                           colour=discord.Colour.from_rgb(0, 0, 255))
     embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/996726573434671154/996780435457724477/2.png")
-    embed.set_footer(text=f"Творець: Zicnet \nВерсія: 1.2.2")
+    embed.set_footer(text=f"Творець: Zicnet \nВерсія: 1.2.5")
     await ctx.reply(embed=embed)
 
 
@@ -48,7 +48,7 @@ async def donat(ctx):
                           url="https://send.monobank.ua/jar/88V1KpQ5t4", colour=discord.Colour.from_rgb(0, 0, 255))
     embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/621287645200384025/997454287762366545/F98o.gif")
     embed.set_footer(text=f"Для переходу на сайт підтримки натисніть кнопку 'підтримка' "
-                          f"\nТворець: Zicnet \nВерсія: 1.2.2")
+                          f"\nТворець: Zicnet \nВерсія: 1.2.5")
     await ctx.author.send(embed=embed)
 
 
@@ -66,7 +66,7 @@ async def start(ctx):
                                       f"\n `/balance` ** - Сумма всіх діамантів у скарбниці (тільки для адміністраціі)",
                           colour=discord.Colour.from_rgb(0, 0, 255))
     embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/996726573434671154/996780435457724477/2.png")
-    embed.set_footer(text=f"Творець: Zicnet \nВерсія: 1.2.2")
+    embed.set_footer(text=f"Творець: Zicnet \nВерсія: 1.2.5")
     await ctx.reply(embed=embed)
 
 
@@ -92,7 +92,7 @@ async def register(ctx, minecraftnick: str):
             ))
     con.commit()
     if len(record) >= 1:
-        await ctx.author.send(
+        await ctx.reply(
             embed=discord.Embed(
                 title="Повідомлення",
                 description=f"Ти дебіл, інструкцію читай. Прописувати команду ТІЛЬКИ один під час реєстрації в системі",
@@ -150,7 +150,7 @@ async def debit(ctx, message):
     cur.execute(f"SELECT userid FROM accounting.accounting WHERE(userid = {member.id})")
     record = cur.fetchall()
     if len(record) <= 0:
-        await ctx.author.send(
+        await ctx.reply(
             embed=discord.Embed(
                 title="Повідомлення",
                 description=f"**Спочатку зарееструйтись - `/register`\n Більш детально можно прочитати, прописавши команду - `/start`**",
@@ -173,10 +173,10 @@ async def debit(ctx, message):
         embed.set_footer(text=f"{datetime.now()}")
         await channel.send(embed=embed)
 
-        await ctx.author.send(
+        await ctx.reply(
             embed=discord.Embed(
                 title="Повідомлення",
-                description=f"Ви поклали до скарбниці `{message}` діамантів.\n Сумма всіх попередніх депозитів покладенних до скарбниці `{debit_input}`",
+                description=f"Ви поклали до скарбниці `{message}` діамантів.",
                 colour=discord.Colour.from_rgb(0, 255, 0)
             ))
 
@@ -191,7 +191,7 @@ async def credit(ctx, message):
     cur.execute(f"SELECT userid FROM accounting.accounting WHERE(userid ={member.id})")
     record = cur.fetchall()
     if len(record) <= 0:
-        await ctx.author.send(
+        await ctx.reply(
             embed=discord.Embed(
                 title="Повідомлення",
                 description=f"**Спочатку зарееструйтись - `/register`\n Більш детально можно прочитати, прописавши команду - `/start`**",
@@ -213,12 +213,52 @@ async def credit(ctx, message):
         )
         embed.set_footer(text=f"{datetime.now()}")
         await channel.send(embed=embed)
-        await ctx.author.send(
+        await ctx.reply(
             embed=discord.Embed(
                 title="Повідомлення",
-                description=f"Ви узяли з скарбниці `{message}` діамантів.\n Сумма всіх попередніх депозитів покладенних до скарбниці `{debit_input}`",
+                description=f"Ви узяли з скарбниці `{message}` діамантів.",
                 colour=discord.Colour.from_rgb(0, 255, 0)
             ))
+
+@slash.slash_command(  # обход
+    description='Переказ грошей',
+    options=[
+        Option("count", description="Кіл-сть діамантів", type=OptionType.INTEGER, required=True),
+        Option("opponent", description="Одержувач", type=OptionType.USER, required=True)
+    ])
+async def send(ctx,count,opponent: discord.Member):
+    author = ctx.author
+    cur.execute(f"SELECT debit FROM accounting.accounting WHERE(userid = '{author.id}')")
+    count_member_sender_fet = cur.fetchone()
+    count_member_sender = int(count_member_sender_fet[0])
+    cur.execute(f"SELECT debit FROM accounting.accounting WHERE(userid = '{opponent.id}')")
+    count_member_recipient_fet = cur.fetchone()
+    count_member_recipient = int(count_member_recipient_fet[0])
+    count_int = int(count)
+    count_difference_sender = count_member_sender - count_int
+    count_difference_recipient = count_member_recipient + count_int
+    cur.execute(f"UPDATE accounting.accounting SET debit = {count_difference_sender} WHERE(userid = '{author.id}')")
+    cur.execute(f"UPDATE accounting.accounting SET debit = {count_difference_recipient} WHERE(userid = '{opponent.id}')")
+    con.commit()
+    embed = discord.Embed(
+        title="Повідомлення",
+        description = f"Ви відправили {opponent.mention}, `{count_int}` діаманта(ов)",
+        colour=discord.Colour.from_rgb(0,255,0)
+    )
+    await ctx.reply(embed=embed)
+    channel = bot.get_channel(998100162247409764)
+    embed = discord.Embed(
+        title="Повідомлення",
+        description = f"Ви відправили {opponent.mention}, `{count_int}` діаманта(ов)",
+        colour=discord.Colour.from_rgb(0,255,0)
+    )
+    await channel.send(embed=embed)
+    embed = discord.Embed(
+        title="Повідомлення",
+        description = f"Вам відправив {ctx.author.mention}, `{count_int}` діаманта(ов)",
+        colour=discord.Colour.from_rgb(0,255,0)
+    )
+    await opponent.send(embed=embed)
 
 
 @slash.slash_command(description='Сумма всіх діамантів у скарбниці', )
