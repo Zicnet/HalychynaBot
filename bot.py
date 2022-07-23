@@ -1,3 +1,6 @@
+import sys
+import os
+
 import discord
 import mysql.connector
 from asyncio import sleep
@@ -7,6 +10,8 @@ from config import settings
 from discord.ext import commands
 from datetime import timedelta, datetime
 from dislash import *
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 
 
 intents = discord.Intents.all()
@@ -26,14 +31,13 @@ cur = con.cursor()
 
 @slash.slash_command(description='Список оновлень', )
 async def new(ctx):
-    embed = discord.Embed(title="Список оновлень версії № 1.2.5",
-                          description=f"**1.** Додана команда `/send` для відправлення коштів\n"
-                                      f"**2.** Додана команда  `/support` коли виникли питання\n "
-                                      f"**3.** Виправлена глобальна помилка 'Додаток не відповідає'\n"
-                                      f"**4.** Та виправлено численну кількість багів",
+    embed = discord.Embed(title="Список оновлень версії № 1.2.6",
+                          description=f"**1.** Додана команда `/restart` перезапуску бота\n"
+                                      f"**2.** Додан автоматичний перезапуск бота, кожні 4 годнини\n "
+                                      f"**3.** Та виправлено численну кількість багів",
                           colour=discord.Colour.from_rgb(0, 0, 255))
     embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/996726573434671154/996780435457724477/2.png")
-    embed.set_footer(text=f"Творець: Zicnet \nВерсія: 1.2.5")
+    embed.set_footer(text=f"Творець: Zicnet \nВерсія: 1.2.6")
     await ctx.reply(embed=embed)
 
 
@@ -48,7 +52,7 @@ async def donat(ctx):
                           url="https://send.monobank.ua/jar/88V1KpQ5t4", colour=discord.Colour.from_rgb(0, 0, 255))
     embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/621287645200384025/997454287762366545/F98o.gif")
     embed.set_footer(text=f"Для переходу на сайт підтримки натисніть кнопку 'підтримка' "
-                          f"\nТворець: Zicnet \nВерсія: 1.2.5")
+                          f"\nТворець: Zicnet \nВерсія: 1.2.6")
     await ctx.author.send(embed=embed)
 
 
@@ -63,14 +67,30 @@ async def start(ctx):
                                       f"\n `/register` ** - Зареєструватися у системи Галичинни**"
                                       f"\n `/donat` ** - Підтримка роботи бота** "
                                       f"\n `/poll` ** - [питання]"
-                                      f"\n `/balance` ** - Сумма всіх діамантів у скарбниці (тільки для адміністраціі)",
+                                      f"\n `/balance` ** - Сумма всіх діамантів у скарбниці (тільки для адміністраціі)"
+                                      f"\n `/restart` ** - Перезапуск бота",
                           colour=discord.Colour.from_rgb(0, 0, 255))
     embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/996726573434671154/996780435457724477/2.png")
-    embed.set_footer(text=f"Творець: Zicnet \nВерсія: 1.2.5")
+    embed.set_footer(text=f"Творець: Zicnet \nВерсія: 1.2.6")
     await ctx.reply(embed=embed)
 
 
 # Команды
+
+@slash.slash_command(description='Перезапуск бота', )
+async def restart(ctx):
+    check_id = ctx.author.id
+    id = [619181347084304386, 296642001619648513, 520603417895370769, 264728880655499265, 585420756310163466]
+    if check_id in id:
+        await ctx.send('Перезапуск бота...!')
+        await bot_restart()
+    else:
+        embed = discord.Embed(
+            title="Повідомлення",
+            description= "Перезапустити бота може тільки <@&995718829625851976>",
+            colour=discord.Colour.from_rgb(255, 0, 0)
+        )
+        await ctx.send(embed=embed)
 
 @slash.slash_command(description='Зареєструватися у системи Галичинни', options=[
     Option("minecraftnick", description="Майнкрафт нік", type=OptionType.STRING, required=True)
@@ -92,7 +112,7 @@ async def register(ctx, minecraftnick: str):
             ))
     con.commit()
     if len(record) >= 1:
-        await ctx.reply(
+        await ctx.author.send(
             embed=discord.Embed(
                 title="Повідомлення",
                 description=f"Ти дебіл, інструкцію читай. Прописувати команду ТІЛЬКИ один під час реєстрації в системі",
@@ -301,7 +321,7 @@ async def support(ctx):
     user = bot.get_user(296642001619648513)
     embed = discord.Embed(
         title="Повідомлення",
-        description = f"Я клоун не зміг зареєструватися. Моє ім'я {ctx.author.mention},зв'яжиться зі мною",
+        description = f"Я клоун не зміг зареєструватися. Моє ім'я {ctx.author.mention},зв'яжиться зі мною.",
         colour=discord.Colour.from_rgb(0, 255, 0))
     await user.send(embed=embed)
     embed = discord.Embed(
@@ -320,10 +340,28 @@ async def on_member_join(member):
     embed.set_footer(text="Уважно читайте 'підказки', коли пишите команди")
     await member.send(embed=embed)
 
+@bot.event
+async def bot_restart():
+    os.execl(sys.executable, sys.executable, *sys.argv)
+
+@bot.event
+async def accounting():
+    print("accounting start", datetime.now())
+    cur = con.cursor()
+    cur.execute("SELECT id, userid,minecraftNick,debit,credit FROM accounting.accounting")
+    record = cur.fetchall()
+    cur.close()
+    if len(record) == 0:
+        return
+
 
 @bot.event
 async def on_ready():
     print(f'{datetime.now()} ON READY')
+    scheduler = AsyncIOScheduler(timezone="Europe/Kiev")
+    scheduler.add_job(accounting, trigger='cron', day_of_week='sun', hour=0, minute=1)
+    scheduler.add_job(bot_restart, trigger='cron', hour=4, minute=00)
+    scheduler.start()
     while True:
         await bot.change_presence(status=discord.Status.online, activity=discord.Game("Zicnet"))
         await sleep(15)
