@@ -117,7 +117,7 @@ async def register(ctx, minecraftnick: str):
                 title="Повідомлення",
                 description=f"Ти дебіл, інструкцію читай. Прописувати команду ТІЛЬКИ один під час реєстрації в системі",
                 colour=discord.Colour.from_rgb(70,255,230)
-            ))
+            )) #
 
 message_id = 0 # Переменная для сообщения голосования
 
@@ -332,17 +332,27 @@ async def support(ctx):
 
 @bot.event
 async def on_member_join(member):
-    embed = discord.Embed(title="Повідомлення",
-                          description=f"Галичина Bot - це електронний помічник клану Галичина. Створений для зручнішого проживання у місті. "
-                                      f"\n Для проходження першого этапу отримання громадянство напишить у чат «**__Регистация__**» команду `/register`"
-                                      f"\n УВАГА: коректної реєстрації використовуйте слэш-команди",
-                          colour=discord.Colour.from_rgb(126, 75, 255))
-    embed.set_footer(text="Уважно читайте 'підказки', коли пишите команди")
-    await member.send(embed=embed)
+    cur = con.cursor()
+    cur.execute(f"SELECT userid FROM accounting.accounting WHERE(userid = {member.id})")
+    record = cur.fetchone()
+    con.commit()
+    if len(record) <=0:
+        embed = discord.Embed(title="Повідомлення",
+                              description=f"Галичина Bot - це електронний помічник клану Галичина. Створений для зручнішого проживання у місті. "
+                                          f"\n Для проходження першого этапу отримання громадянство напишить у чат «**__Регистация__**» команду `/register`"
+                                          f"\n УВАГА: коректної реєстрації використовуйте слэш-команди",
+                              colour=discord.Colour.from_rgb(126, 75, 255))
+        embed.set_footer(text="Уважно читайте 'підказки', коли пишите команди")
+        await member.send(embed=embed)
+    elif len(record) >= 1:
+        role = discord.utils.get(member.guild.roles, id=997807331188424744)
+        await member.add_roles(role)
 
-@bot.event
-async def bot_restart():
-    os.execl(sys.executable, sys.executable, *sys.argv)
+
+
+#@bot.event
+#async def bot_restart():
+#    os.execl(sys.executable, sys.executable, *sys.argv)
 
 @bot.event
 async def accounting():
@@ -358,10 +368,10 @@ async def accounting():
 @bot.event
 async def on_ready():
     print(f'{datetime.now()} ON READY')
-    scheduler = AsyncIOScheduler(timezone="Europe/Kiev")
-    scheduler.add_job(accounting, trigger='cron', day_of_week='sun', hour=0, minute=1)
-    scheduler.add_job(bot_restart, trigger='cron', hour=4, minute=00)
-    scheduler.start()
+#    scheduler = AsyncIOScheduler(timezone="Europe/Kiev")
+#   scheduler.add_job(accounting, trigger='cron', day_of_week='sun', hour=0, minute=1)
+#   scheduler.add_job(bot_restart, trigger='cron', hour=4, minute=00)
+#   scheduler.start()
     while True:
         await bot.change_presence(status=discord.Status.online, activity=discord.Game("Zicnet"))
         await sleep(15)
